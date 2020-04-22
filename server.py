@@ -1,28 +1,33 @@
 import socket
 import os
 from _thread import *
+import threading
+
 
 ServerSocket = socket.socket()
 host = '192.168.0.110'
 port = 1233
 ThreadCount = 0
+clients = {} 
 try:
     ServerSocket.bind((host, port))
 except socket.error as e:
     print(str(e))
 
-print('Waitiing for a Connection..')
+print('Waiting for a Connection..')
 ServerSocket.listen(5)
-
 
 def threaded_client(connection):
     connection.send(str.encode('Welcome to the Server\n'))
     while True:
-        data = connection.recv(2048)
-        reply = 'Server Says: ' + data.decode('utf-8')
-        if not data:
+        try:
+            data = connection.recv(2048)
+            reply = 'Server Says: ' + data.decode('utf-8')
+            if not data:
+                break
+            connection.sendall(str.encode(reply))
+        except:
             break
-        connection.sendall(str.encode(reply))
     connection.close()
 
 while True:
