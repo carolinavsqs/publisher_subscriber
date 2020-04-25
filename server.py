@@ -11,11 +11,59 @@ HOST = 'localhost'
 PORT = 1233
 
 
-def threaded_client(connection):
+def authenticate_node(connection):
     connection.send(str.encode('Welcome to the Server\n'))
-    id_pub = get_node_id(cur, str(connection.getpeername()[0]))
+    # TODO
+
+
+def connect_node():
+    # TODO
+    pass
+
+
+def publish_message():
+    # TODO
+    pass
+
+
+def list_topics():
+    # TODO
+    pass
+
+
+def subscribe_topic():
+    # TODO
+    pass
+
+
+def unsubscribe_topic():
+    # TODO
+    pass
+
+
+FUNCTIONS = {
+    'connect': connect_node,
+    'publish': publish_message,
+    'list': list_topics,
+    'subscribe': subscribe_topic,
+    'unsubscribe': unsubscribe_topic,
+}
+
+
+def threaded_client(connection):
+    authenticate_node(connection)
+
     while True:
+        msg = connection.recv(2048)
+        operation = FUNCTIONS.get(msg.message_type, False)
+
+        if operation:
+            operation()
+        else:
+            connection.send(str.encode("Invalid operation"))
+
         try:
+            id_pub = get_node_id(cur, str(connection.getpeername()[0]))
             data = connection.recv(2048)
             if data.decode('utf-8')[0] == 'M':
                 reply = 'Server Says: mensagem enviada'
