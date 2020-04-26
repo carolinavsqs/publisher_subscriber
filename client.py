@@ -87,6 +87,8 @@ NODE_ID = load_node_id()
 broker_connection(NODE_ID)
 
 while True:
+    Response = ClientSocket.recv(1024)
+    print(Response.decode('utf-8'))
     menu = 'Select a option: ' \
            '\n 1 - List Topics' \
            '\n 2 - Subscribe Topic' \

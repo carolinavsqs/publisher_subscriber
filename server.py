@@ -93,6 +93,9 @@ FUNCTIONS = {
 
 def threaded_client(connection):
     authenticate_node(connection)
+  
+    id_node = get_node_id(cur, str(connection.getpeername()[0]))
+    send_message_after_connect(cur, connection.getpeername()[0], connection)
 
     while True:
         msg = connection.recv(2048)
@@ -109,7 +112,7 @@ def threaded_client(connection):
             data = connection.recv(2048)
             if data.decode('utf-8')[0] == 'M':
                 reply = 'Server Says: mensagem enviada'
-                store_message(cur, data.decode('utf-8'), data.decode('utf-8')[1:5], id_pub)
+                store_message(cur, data.decode('utf-8'), data.decode('utf-8')[1:5], id_node, connection)
             else :
                 reply = 'Server Says: mensagem enviada'
             if not data:
@@ -121,7 +124,7 @@ def threaded_client(connection):
 
 
 def connect_database():
-    con = psycopg2.connect(host='127.0.0.1', database='publisher_subscriber', user='postgres', password='suasenha')
+    con = psycopg2.connect(host='127.0.0.1', database='publisher_subscriber', user='postgres', password='senha')
     return con
 
 
@@ -167,7 +170,7 @@ def get_last_topic(cur):
 
 
 def get_subscribers(cur, id_topic):
-    sql = "select id_sub from ps.topics_nodes where id_topic = " + str(id_topic)
+    sql = "select tn.id_sub, n.ip, n.porta from ps.topics_nodes tn join ps.nodes n on tn.id_sub = n.id where tn.id_topic = " + str(id_topic)
     cur.execute(sql)
     ids = cur.fetchall()
     if not ids:
@@ -184,6 +187,7 @@ def get_node_id(cur, ip):
         return 0
     else:
         return id
+
 
 def get_node_ip(cur, id):
     sql = "select ip from ps.nodes where id =  " + str(id)
@@ -233,20 +237,29 @@ def store_message(cur, corpo, topic_name, id_pub):
     id = id + 1
     subs = get_subscribers(cur, id_topic)
     id_pub = id_pub[0]
-    for id_sub in subs:
-        insert_message(cur, id, corpo, id_pub, id_sub[0], id_topic)
+    for sub in subs:
+        try:
+            connection.sendto(str.encode(corpo), (sub[1], int(sub[2])))
+        except:
+            insert_message(cur, id, corpo, id_pub, sub[0], id_topic)
 
+            
+def send_message_after_connect(cur, ip_sub, connection):
+    sql = "select m.id, m.corpo from ps.messages m join ps.nodes n on m.id_sub = n.id where n.ip = '" + ip_sub + "'"
 
-def send_message(cur):
-    sql = "select id, corpo, ip from ps.messages m join ps.nodes n on m.id_sub = n.id"
     cur.execute(sql)
     messages = cur.fetchall()
+    if not messages:
+        connection.sendall(str.encode("Voce está atualizado"))
     for message in messages:
-        # enviar mensagem para message.ip
-        #se der certo
-        sql = "delete from ps.messages where id = "+ message.id
-        cur.execute(sql)
-        con.commit()
+        print(message)
+        try:
+            connection.sendall(str.encode(message[1]))
+            sql = "delete from ps.messages where id = "+ str(message[0])
+            cur.execute(sql)
+            con.commit()
+        except:
+            print("Cliente desconectado")
 
 
 ServerSocket = socket.socket()
@@ -270,5 +283,6 @@ while True:
     start_new_thread(threaded_client, (Client,))
     ThreadCount += 1
     print('Thread Number: ' + str(ThreadCount))
+
 
 ServerSocket.close()
