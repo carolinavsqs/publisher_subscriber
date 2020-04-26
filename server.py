@@ -6,11 +6,64 @@ import psycopg2
 
 # pip install psycopg2
 
-def threaded_client(connection):
+
+HOST = 'localhost'
+PORT = 1233
+
+
+def authenticate_node(connection):
     connection.send(str.encode('Welcome to the Server\n'))
-    id_pub = get_node_id(cur, str(connection.getpeername()[0]))
+    # TODO
+
+
+def connect_node():
+    # TODO
+    pass
+
+
+def publish_message():
+    # TODO
+    pass
+
+
+def list_topics():
+    # TODO
+    pass
+
+
+def subscribe_topic():
+    # TODO
+    pass
+
+
+def unsubscribe_topic():
+    # TODO
+    pass
+
+
+FUNCTIONS = {
+    'connect': connect_node,
+    'publish': publish_message,
+    'list': list_topics,
+    'subscribe': subscribe_topic,
+    'unsubscribe': unsubscribe_topic,
+}
+
+
+def threaded_client(connection):
+    authenticate_node(connection)
+
     while True:
+        msg = connection.recv(2048)
+        operation = FUNCTIONS.get(msg.message_type, False)
+
+        if operation:
+            operation()
+        else:
+            connection.send(str.encode("Invalid operation"))
+
         try:
+            id_pub = get_node_id(cur, str(connection.getpeername()[0]))
             data = connection.recv(2048)
             if data.decode('utf-8')[0] == 'M':
                 reply = 'Server Says: mensagem enviada'
@@ -20,7 +73,7 @@ def threaded_client(connection):
             if not data:
                 break
             connection.sendall(str.encode(reply))
-        except:
+        except error:
             break
     connection.close()
 
@@ -29,6 +82,7 @@ def connect_database():
     con = psycopg2.connect(host='127.0.0.1', database='publisher_subscriber', user='postgres', password='suasenha')
     return con
 
+
 def disconnect_database(con):
     con.close()
 
@@ -36,6 +90,7 @@ def disconnect_database(con):
     # sql = "insert into ps.nodes values(" +str(id)+ ", '" +ip+ "', '" +gate+ "')"
     # cur.execute(sql)
     # con.commit()
+
 
 def insert_message(cur, id, corpo, id_pub, id_sub, id_topic):
     sql = "insert into ps.messages values(" + str(id) + ", '" + corpo + "', " + str(id_pub) + ", "+ str(id_sub) +", "+ str(id_topic)+")"
@@ -52,6 +107,7 @@ def get_last_message(cur):
     else:
         return id[0][0]
 
+
 def get_last_topic(cur):
     sql = "select id from ps.topics order by id desc limit 1"
     cur.execute(sql)
@@ -60,6 +116,7 @@ def get_last_topic(cur):
         return 0
     else:
         return id[0][0]
+
 
 def get_subscribers(cur, id_topic):
     sql = "select id_sub from ps.topics_nodes where id_topic = " + str(id_topic)
@@ -70,6 +127,7 @@ def get_subscribers(cur, id_topic):
     else:
         return ids
 
+
 def get_node_id(cur, ip):
     sql = "select id from ps.nodes where ip = '" + ip+ "'"
     cur.execute(sql)
@@ -78,6 +136,7 @@ def get_node_id(cur, ip):
         return 0
     else:
         return id
+
 
 def store_message(cur, corpo, topic_name, id_pub):
     sql = "select id from ps.topics where name = '" + topic_name + "'"
@@ -97,6 +156,7 @@ def store_message(cur, corpo, topic_name, id_pub):
     for id_sub in subs:
         insert_message(cur, id, corpo, id_pub, id_sub[0], id_topic)
 
+
 def send_message(cur):
     sql = "select id, corpo, ip from ps.messages m join ps.nodes n on m.id_sub = n.id"
     cur.execute(sql)
@@ -108,16 +168,16 @@ def send_message(cur):
         cur.execute(sql)
         con.commit()
 
+
 ServerSocket = socket.socket()
-host = 'localhost'
-port = 1233
+
 ThreadCount = 0
 clients = {} 
 
 con = connect_database()
 cur = con.cursor()
 try:
-    ServerSocket.bind((host, port))
+    ServerSocket.bind((HOST, PORT))
 except socket.error as e:
     print(str(e))
 
@@ -130,4 +190,5 @@ while True:
     start_new_thread(threaded_client, (Client,))
     ThreadCount += 1
     print('Thread Number: ' + str(ThreadCount))
+
 ServerSocket.close()
