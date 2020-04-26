@@ -1,9 +1,28 @@
 import socket
+import pickle
 from message import Message
 
 ClientSocket = socket.socket()
 HOST = '127.0.0.1'
 PORT = 1233
+NODE_ID = ''
+
+
+def load_node_id():
+    try:
+        file = open("id.txt", "r")
+        node_id = file.readline()
+        return node_id
+        file.close()
+    except:
+        return False
+
+
+
+def save_node_id(node_id):
+    file = open("id.txt", "w")
+    file.write(str(node_id))
+    file.close()
 
 
 def publish_message():
@@ -25,6 +44,27 @@ def unsubscribe_topic():
     pass
 
 
+def broker_connection(node_id):
+    print('Waiting for connection')
+    try:
+        ClientSocket.connect((HOST, PORT))
+    except socket.error as e:
+        print(str(e))
+
+    msg = pickle.dumps(Message(node_id, 'connect', ''))
+    ClientSocket.send(msg)
+
+    msg = ClientSocket.recv(2048)
+    msg = pickle.loads(msg)
+
+    if msg.message_type == "connect":
+        NODE_ID = msg.node_id
+        save_node_id(NODE_ID)
+        print(msg.content)
+    else:
+        print(msg.content)
+
+
 FUNCTIONS = {
     '1': publish_message,
     '2': list_topics,
@@ -32,13 +72,9 @@ FUNCTIONS = {
     '4': unsubscribe_topic,
 }
 
-print('Waiting for connection')
-try:
-    ClientSocket.connect((HOST, PORT))
-except socket.error as e:
-    print(str(e))
 
-Response = ClientSocket.recv(1024)
+NODE_ID = load_node_id()
+broker_connection(NODE_ID)
 
 while True:
     menu = 'Select a option: ' \
