@@ -56,9 +56,20 @@ def publish_message():
     pass
 
 
-def list_topics():
-    # TODO
-    pass
+def list_topics(connection):
+    """
+    Returns a list of topics available to subscribe
+    :param connection:
+    :return:
+    """
+    topics_list = get_topics(cur)
+
+    msg_string = 'List of available topics: \n'
+    for topic in topics_list:
+        msg_string += topic[0] + '\n'
+
+    msg = pickle.dumps(Message('Broker', 'response', msg_string))
+    connection.send(msg)
 
 
 def subscribe_topic():
@@ -89,7 +100,7 @@ def threaded_client(connection):
         operation = FUNCTIONS.get(msg.message_type, False)
 
         if operation:
-            operation()
+            operation(connection)
         else:
             connection.send(str.encode("Invalid operation"))
 
@@ -192,6 +203,14 @@ def get_node_gate(cur, id):
     else:
         return gate
 
+def get_topics(cur):
+    sql = "select name from ps.topics"
+    cur.execute(sql)
+    topics = cur.fetchall()
+    if not topics:
+        return False
+    else:
+        return topics
 
 def update_node(cur, id, ip, gate):
     sql = "update ps.nodes set ip = '" + str(ip) + "',porta = '" + str(gate) + "' where id = " + str(id)
