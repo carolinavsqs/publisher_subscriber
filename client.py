@@ -30,8 +30,18 @@ def publish_message():
     pass
 
 def list_topics():
-    # TODO
-    pass
+    """
+
+    :return: List of topics available to subscribe
+    """
+    msg = pickle.dumps(Message(NODE_ID, 'list', ''))
+    ClientSocket.send(msg)
+
+    msg = ClientSocket.recv(2048)
+    msg = pickle.loads(msg)
+    print(msg.content)
+
+    return True
 
 
 def subscribe_topic():
@@ -66,10 +76,10 @@ def broker_connection(node_id):
 
 
 FUNCTIONS = {
-    '1': publish_message,
-    '2': list_topics,
-    '3': subscribe_topic,
-    '4': unsubscribe_topic,
+    '1': list_topics,
+    '2': subscribe_topic,
+    '3': unsubscribe_topic,
+    '4': publish_message,
 }
 
 
