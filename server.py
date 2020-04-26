@@ -27,7 +27,7 @@ def threaded_client(connection):
 
 
 def connect_database():
-    con = psycopg2.connect(host='127.0.0.1', database='publisher_subscriber', user='postgres', password='19972015')
+    con = psycopg2.connect(host='127.0.0.1', database='publisher_subscriber', user='postgres', password='senha')
     return con
 
 def disconnect_database(con):
