@@ -1,8 +1,11 @@
+import pickle
 import socket
 import os
 from _thread import *
 import threading
 import psycopg2
+
+from message import Message
 
 # pip install psycopg2
 
@@ -12,8 +15,35 @@ PORT = 1233
 
 
 def authenticate_node(connection):
-    connection.send(str.encode('Welcome to the Server\n'))
-    # TODO
+    """
+    Handles connections from new nodes and nodes already registered
+    :param connection:
+    :return:
+    """
+    msg = connection.recv(2048)
+    msg = pickle.loads(msg)
+    if msg.message_type == 'connect':
+        ip = connection.getpeername()[0]
+        gate = connection.getpeername()[1]
+        node_id = msg.node_id
+
+        # Node already has a system ID
+        if node_id:
+            # Updates the user's address
+            if ip != get_node_ip(cur, node_id) or gate != get_node_gate(cur, node_id):
+                update_node(cur, node_id, ip, gate)
+
+            msg = pickle.dumps(Message(node_id, 'accept', "Welcome to the Server\n"))
+            connection.send(msg)
+
+            print("Client " + str(node_id) + ", logged with address " + str(ip) + ":" + str(gate))
+
+        #  New node on system
+        else:
+            new_id = insert_node(cur, ip, gate)
+            msg = pickle.dumps(Message(new_id, 'connect', "Welcome to the Server\n"))
+            connection.send(msg)
+            print("New client " + str(new_id) + ", logged with address " + str(ip) + ":" + str(gate))
 
 
 def connect_node():
@@ -55,6 +85,7 @@ def threaded_client(connection):
 
     while True:
         msg = connection.recv(2048)
+        msg = pickle.loads(msg)
         operation = FUNCTIONS.get(msg.message_type, False)
 
         if operation:
@@ -86,10 +117,16 @@ def connect_database():
 def disconnect_database(con):
     con.close()
 
-# def insert_node(cur, id, ip, gate):
-    # sql = "insert into ps.nodes values(" +str(id)+ ", '" +ip+ "', '" +gate+ "')"
-    # cur.execute(sql)
-    # con.commit()
+def insert_node(cur, ip, gate):
+    sql = 'SELECT id FROM ps.nodes ORDER BY id DESC LIMIT 1'
+    cur.execute(sql)
+    node_id = cur.fetchone()[0]
+
+    node_id = int(node_id) + 1
+    sql = "insert into ps.nodes values(" +str(node_id)+ ", '" +str(ip)+ "', '" + str(gate) + "')"
+    cur.execute(sql)
+    con.commit()
+    return node_id
 
 
 def insert_message(cur, id, corpo, id_pub, id_sub, id_topic):
@@ -136,6 +173,30 @@ def get_node_id(cur, ip):
         return 0
     else:
         return id
+
+def get_node_ip(cur, id):
+    sql = "select ip from ps.nodes where id =  " + str(id)
+    cur.execute(sql)
+    ip = cur.fetchone()
+    if not ip:
+        return False
+    else:
+        return ip
+
+def get_node_gate(cur, id):
+    sql = "select porta from ps.nodes where id =  " + str(id)
+    cur.execute(sql)
+    gate = cur.fetchone()
+    if not gate:
+        return False
+    else:
+        return gate
+
+
+def update_node(cur, id, ip, gate):
+    sql = "update ps.nodes set ip = '" + str(ip) + "',porta = '" + str(gate) + "' where id = " + str(id)
+    cur.execute(sql)
+    con.commit()
 
 
 def store_message(cur, corpo, topic_name, id_pub):
