@@ -108,6 +108,39 @@ def send_message(cur):
         cur.execute(sql)
         con.commit()
 
+def subscribe_on_topic(cur, id_topic, id_node):
+	sql = "select * from ps.topics_nodes where id_topic = '" + str(id_topic) + "' and id_sub = '" + str(id_node) + "'"
+	cur.execute(sql)
+	is_subscribed = cur.fetchall()
+	if not is_subscribed:
+		sql = "insert into ps.topics_nodes values(" + str(id_topic) + "," + str(id_node) + ")"
+		cur.execute(sql)
+		con.commit()
+		return 'Successfully subscribed!'
+	else:
+		return 'Already subscribed'
+
+def unsubscribe_on_topic(cur, id_topic, id_node):
+	sql = "select * from ps.topics_nodes where id_topic = '" + str(id_topic) + "' and id_sub = '" + str(id_node) + "'"
+	cur.execute(sql)
+	is_subscribed = cur.fetchall()
+	if is_subscribed:
+		sql = "delete from ps.topics_nodes id_topic = '" + str(id_topic) + "' and id_sub = '" + str(id_node) + "'"
+		cur.execute(sql)
+		con.commit()
+		return 'You are not subscribed to this topic anymore.'
+	else:
+		return 'Subscription not found'
+        
+def get_subscribed_topics(cur, id_node):
+	sql = "select t.name from ps.topics t join ps.topics_nodes n on (t.id_topic = n.id_topic) where n.id_sub = '" + str(id_node) + "'"
+	cur.execute(sql)
+	topic_names = cur.fetchall()
+	if not topic_list:
+		return None
+	else:
+		return topic_names
+
 ServerSocket = socket.socket()
 host = 'localhost'
 port = 1233
