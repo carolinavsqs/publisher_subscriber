@@ -38,7 +38,7 @@ def list_topics():
 
     :return: List of topics available to subscribe
     """
-    msg = pickle.dumps(Message(NODE_ID, 'list', '', ''))
+    msg = pickle.dumps(Message(NODE_ID, 'list_all', '', ''))
     ClientSocket.send(msg)
 
     msg = ClientSocket.recv(2048)
@@ -49,13 +49,35 @@ def list_topics():
 
 
 def subscribe_topic():
-    # TODO
-    pass
+    topic = input("Enter with the Topic ID: ")
+
+    msg = Message(NODE_ID, 'subscribe', topic, topic)
+    msg = pickle.dumps(msg)
+    ClientSocket.send(msg)
+
+    msg = ClientSocket.recv(2048)
+    msg = pickle.loads(msg)
+    print(msg.content)
 
 
 def unsubscribe_topic():
-    # TODO
-    pass
+    msg = Message(NODE_ID, 'list_subscribed', '', '')
+    msg = pickle.dumps(msg)
+    ClientSocket.send(msg)
+
+    msg = ClientSocket.recv(2048)
+    msg = pickle.loads(msg)
+    print(msg.content)
+
+    topic = input("Enter with the Topic ID: ")
+
+    msg = Message(NODE_ID, 'unsubscribe', topic, topic)
+    msg = pickle.dumps(msg)
+    ClientSocket.send(msg)
+
+    msg = ClientSocket.recv(2048)
+    msg = pickle.loads(msg)
+    print(msg.content)
 
 
 def broker_connection(node_id):

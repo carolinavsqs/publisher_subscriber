@@ -72,22 +72,64 @@ def list_topics(connection, msg):
     connection.send(msg)
 
 
-def subscribe_topic():
-    # TODO
-    pass
+def subscribe_topic(connection, msg):
+    sql = "select * from ps.topics_nodes where id_topic = '" + msg.topic + "' and id_sub = '" + msg.node_id + "'"
+    cur.execute(sql)
+    is_subscribed = cur.fetchall()
+    if not is_subscribed:
+        sql = "insert into ps.topics_nodes values(" + msg.topic + "," + msg.node_id + ")"
+        cur.execute(sql)
+        con.commit()
+        string_msg = 'Successfully subscribed to ' + msg.topic + '!'
+
+    else:
+        string_msg = 'Already subscribed to ' + msg.topic + '!'
+
+    msg = Message(msg.node_id, 'response', string_msg, msg.topic)
+    msg = pickle.dumps(msg)
+    connection.send(msg)
 
 
-def unsubscribe_topic():
-    # TODO
-    pass
+def get_subscribed_topics(connection, msg):
+    sql = "select t.name, t.id from ps.topics t join ps.topics_nodes n on (t.id = n.id_topic) where n.id_sub = '" + msg.node_id + "'"
+    cur.execute(sql)
+    subscribed_topics = cur.fetchall()
+    topic_list = ''
+    for topic in subscribed_topics:
+        topic_list += str(topic)
+        topic_list += '\n'
+    if not subscribed_topics:
+        string_msg = 'You are not subscribed to any topic.'
+    else:
+        string_msg = 'You are subscribed to the following topics:\n' + topic_list
+    msg = pickle.dumps(Message(msg.node_id, 'list', string_msg, ''))
+    connection.send(msg)
+
+
+def unsubscribe_topic(connection, msg):
+    sql = "select * from ps.topics_nodes where id_topic = '" + msg.topic + "' and id_sub = '" + msg.node_id + "'"
+    cur.execute(sql)
+    is_subscribed = cur.fetchall()
+    if is_subscribed:
+        sql = "delete from ps.topics_nodes where id_topic = '" + msg.topic + "' and id_sub = '" + msg.node_id + "'"
+        cur.execute(sql)
+        con.commit()
+        string_msg = 'You are not subscribed from topic ' + msg.topic + ' anymore.'
+    else:
+        string_msg = 'Subscription not found'
+
+    msg = Message(msg.node_id, 'response', string_msg, msg.topic)
+    msg = pickle.dumps(msg)
+    connection.send(msg)
 
 
 FUNCTIONS = {
     'connect': connect_node,
     'publish': publish_message,
-    'list': list_topics,
+    'list_all': list_topics,
     'subscribe': subscribe_topic,
     'unsubscribe': unsubscribe_topic,
+    'list_subscribed': get_subscribed_topics,
 }
 
 
@@ -231,8 +273,10 @@ def store_message(connection, msg):
     id_pub = msg.node_id
     for sub in subs:
         client = sub[1] + ':' + sub[2]
+        connection.bind((sub[1], int(sub[2])))
         if client in CLIENTS:
-            connection.sendto(str.encode(msg.content), (sub[1], int(sub[2])))
+            msg = pickle.dumps(msg)
+            connection.sendto(msg)
         else:
             insert_message(cur, id, msg.content, id_pub, sub[0], id_topic)
 
@@ -257,39 +301,6 @@ def send_message_after_connect(cur, ip_sub, connection):
         except:
             print("Cliente desconectado")
 
-
-def subscribe_on_topic(cur, id_topic, id_node):
-	sql = "select * from ps.topics_nodes where id_topic = '" + str(id_topic) + "' and id_sub = '" + str(id_node) + "'"
-	cur.execute(sql)
-	is_subscribed = cur.fetchall()
-	if not is_subscribed:
-		sql = "insert into ps.topics_nodes values(" + str(id_topic) + "," + str(id_node) + ")"
-		cur.execute(sql)
-		con.commit()
-		return 'Successfully subscribed!'
-	else:
-		return 'Already subscribed'
-
-def unsubscribe_on_topic(cur, id_topic, id_node):
-	sql = "select * from ps.topics_nodes where id_topic = '" + str(id_topic) + "' and id_sub = '" + str(id_node) + "'"
-	cur.execute(sql)
-	is_subscribed = cur.fetchall()
-	if is_subscribed:
-		sql = "delete from ps.topics_nodes id_topic = '" + str(id_topic) + "' and id_sub = '" + str(id_node) + "'"
-		cur.execute(sql)
-		con.commit()
-		return 'You are not subscribed to this topic anymore.'
-	else:
-		return 'Subscription not found'
-        
-def get_subscribed_topics(cur, id_node):
-	sql = "select t.name from ps.topics t join ps.topics_nodes n on (t.id_topic = n.id_topic) where n.id_sub = '" + str(id_node) + "'"
-	cur.execute(sql)
-	topic_names = cur.fetchall()
-	if not topic_list:
-		return None
-	else:
-		return topic_names
 
 ServerSocket = socket.socket()
 
