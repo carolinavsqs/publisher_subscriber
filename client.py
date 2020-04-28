@@ -1,10 +1,11 @@
 import socket
 import pickle
+from _thread import *
 from message import Message
 
 ClientSocket = socket.socket()
 HOST = '127.0.0.1'
-PORT = 1233
+PORT = 1232
 NODE_ID = ''
 
 
@@ -26,15 +27,17 @@ def save_node_id(node_id):
 
 
 def publish_message():
-    # TODO
-    pass
+    string_topic = input("Insert the message topic: ")
+    string_msg = input("Insert the message: ")
+    msg = pickle.dumps(Message(NODE_ID, 'publish', string_msg, string_topic))
+    ClientSocket.send(msg)
 
 def list_topics():
     """
 
     :return: List of topics available to subscribe
     """
-    msg = pickle.dumps(Message(NODE_ID, 'list', ''))
+    msg = pickle.dumps(Message(NODE_ID, 'list_all', '', ''))
     ClientSocket.send(msg)
 
     msg = ClientSocket.recv(2048)
@@ -45,13 +48,45 @@ def list_topics():
 
 
 def subscribe_topic():
-    # TODO
-    pass
+    topic = input("Enter with the Topic ID: ")
+
+    msg = Message(NODE_ID, 'subscribe', topic, topic)
+    msg = pickle.dumps(msg)
+    ClientSocket.send(msg)
+
+    msg = ClientSocket.recv(2048)
+    msg = pickle.loads(msg)
+    print(msg.content)
 
 
 def unsubscribe_topic():
-    # TODO
-    pass
+    msg = Message(NODE_ID, 'list_subscribed', '', '')
+    msg = pickle.dumps(msg)
+    ClientSocket.send(msg)
+
+    msg = ClientSocket.recv(2048)
+    msg = pickle.loads(msg)
+    print(msg.content)
+
+    if msg.topic:
+        topic = input("Enter with the Topic ID: ")
+
+        msg = Message(NODE_ID, 'unsubscribe', topic, topic)
+        msg = pickle.dumps(msg)
+        ClientSocket.send(msg)
+
+        msg = ClientSocket.recv(2048)
+        msg = pickle.loads(msg)
+        print(msg.content)
+
+def get_subscribed_topics():
+    msg = Message(NODE_ID, 'list_subscribed', '', '')
+    msg = pickle.dumps(msg)
+    ClientSocket.send(msg)
+
+    msg = ClientSocket.recv(2048)
+    msg = pickle.loads(msg)
+    print(msg.content)
 
 
 def broker_connection(node_id):
@@ -61,7 +96,7 @@ def broker_connection(node_id):
     except socket.error as e:
         print(str(e))
 
-    msg = pickle.dumps(Message(node_id, 'connect', ''))
+    msg = pickle.dumps(Message(node_id, 'connect', '', ''))
     ClientSocket.send(msg)
 
     msg = ClientSocket.recv(2048)
@@ -77,29 +112,65 @@ def broker_connection(node_id):
 
 FUNCTIONS = {
     '1': list_topics,
-    '2': subscribe_topic,
-    '3': unsubscribe_topic,
-    '4': publish_message,
+    '2': get_subscribed_topics,
+    '3': subscribe_topic,
+    '4': unsubscribe_topic,
+    '5': publish_message,
 }
 
 
 NODE_ID = load_node_id()
 broker_connection(NODE_ID)
 
-while True:
-    Response = ClientSocket.recv(1024)
-    print(Response.decode('utf-8'))
-    menu = 'Select a option: ' \
-           '\n 1 - List Topics' \
-           '\n 2 - Subscribe Topic' \
-           '\n 3 - Unsubscribe Topic' \
-           '\n 4 - Publish a message\n'
-    action = input(menu)
-    operation = FUNCTIONS.get(action, False)
 
-    if operation:
-        operation()
-    else:
-        print('Invalid command')
+# data = b""
+# while True:
+#     packet = ClientSocket.recv(4096)
+#     print(packet)
+#     if not packet: break
+#     data += packet
+
+# Response = ClientSocket.recv(1024)
+# Response = pickle.loads(Response)
+# print(Response.topic + ': ' + Response.content)
+
+
+def threaded_message(ClientSocket):
+    HOST = ''  # Endereco IP do Servidor
+    PORT = ClientSocket.getsockname()[1]  # Porta que o Servidor esta
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    orig = (HOST, PORT)
+    udp.bind(orig)
+
+    while True:
+        Response = udp.recv(1024)
+        Response = pickle.loads(Response)
+        print(Response.topic + ': ' + Response.content)
+
+Response = ClientSocket.recv(1024)
+Response = pickle.loads(Response)
+print(Response.topic + ': ' + Response.content)
+
+start_new_thread(threaded_message, (ClientSocket,))
+while True:
+
+    menu = '\n --------------------' \
+           '\n Select a option: ' \
+           '\n 1 - List All Topics' \
+           '\n 2 - List Your Subscribed Topics' \
+           '\n 3 - Subscribe Topic' \
+           '\n 4 - Unsubscribe Topic' \
+           '\n 5 - Publish a Message\n'
+
+    action = input(menu)
+
+    if action:
+        operation = FUNCTIONS.get(action, False)
+        if operation:
+
+            operation()
+            first = True
+        else:
+            print('Invalid command')
 
 ClientSocket.close()
