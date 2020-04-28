@@ -11,7 +11,7 @@ from message import Message
 
 
 HOST = 'localhost'
-PORT = 1233
+PORT = 1232
 CLIENTS = []
 
 
@@ -66,14 +66,14 @@ def list_topics(connection, msg):
 
     msg_string = 'List of available topics: \n'
     for topic in topics_list:
-        msg_string += topic[0] + '\n'
+        msg_string += topic[0] + ' - ' + topic[1] + '\n'
 
     msg = pickle.dumps(Message('Broker', 'response', msg_string, ''))
     connection.send(msg)
 
 
 def subscribe_topic(connection, msg):
-    sql = "select * from ps.topics_nodes where id_topic = '" + msg.topic + "' and id_sub = '" + msg.node_id + "'"
+    sql = "select * from ps.topics_nodes where id_topic = " + msg.topic + " and id_sub = " + msg.node_id
     cur.execute(sql)
     is_subscribed = cur.fetchall()
     if not is_subscribed:
@@ -91,18 +91,20 @@ def subscribe_topic(connection, msg):
 
 
 def get_subscribed_topics(connection, msg):
-    sql = "select t.name, t.id from ps.topics t join ps.topics_nodes n on (t.id = n.id_topic) where n.id_sub = '" + msg.node_id + "'"
+    sql = "select t.name, t.id from ps.topics t join ps.topics_nodes n on (t.id = n.id_topic) where n.id_sub = " + msg.node_id
     cur.execute(sql)
     subscribed_topics = cur.fetchall()
-    topic_list = ''
-    for topic in subscribed_topics:
-        topic_list += str(topic)
-        topic_list += '\n'
+
     if not subscribed_topics:
         string_msg = 'You are not subscribed to any topic.'
+        if_topics = False
     else:
-        string_msg = 'You are subscribed to the following topics:\n' + topic_list
-    msg = pickle.dumps(Message(msg.node_id, 'list', string_msg, ''))
+        string_msg = 'You are subscribed to the following topics:\n'
+        if_topics = True
+        for topic in subscribed_topics:
+            string_msg += str(topic[1]) + ' - ' + topic[0] + '\n'
+
+    msg = pickle.dumps(Message(msg.node_id, 'list', string_msg, if_topics))
     connection.send(msg)
 
 
@@ -149,7 +151,8 @@ def threaded_client(connection):
                 operation(connection, msg)
             else:
                 connection.send(str.encode("Invalid operation"))
-        except:
+        except error:
+            print(error)
             client = str(connection.getpeername()[0]) + ':' + str(connection.getpeername()[1])
             print("Client " + client + ' quit server')
             CLIENTS.remove(client)
@@ -208,7 +211,7 @@ def get_subscribers(cur, id_topic):
     cur.execute(sql)
     ids = cur.fetchall()
     if not ids:
-        return None
+        return []
     else:
         return ids
 
@@ -228,7 +231,7 @@ def get_node_ip(cur, id):
     cur.execute(sql)
     ip = cur.fetchone()
     if not ip:
-        return False
+        return 0
     else:
         return ip
 
@@ -242,7 +245,7 @@ def get_node_gate(cur, id):
         return gate
 
 def get_topics(cur):
-    sql = "select name from ps.topics"
+    sql = "select id, name from ps.topics"
     cur.execute(sql)
     topics = cur.fetchall()
     if not topics:
@@ -271,14 +274,16 @@ def store_message(connection, msg):
     id = id + 1
     subs = get_subscribers(cur, id_topic)
     id_pub = msg.node_id
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     for sub in subs:
         client = sub[1] + ':' + sub[2]
-        connection.bind((sub[1], int(sub[2])))
+
         if client in CLIENTS:
-            msg = pickle.dumps(msg)
-            connection.sendto(msg)
+            msg_new = pickle.dumps(msg)
+            udp.sendto(msg_new, (sub[1], int(sub[2])))
         else:
             insert_message(cur, id, msg.content, id_pub, sub[0], id_topic)
+    udp.close()
 
             
 def send_message_after_connect(cur, ip_sub, connection):

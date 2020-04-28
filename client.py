@@ -1,12 +1,11 @@
 import socket
 import pickle
-from threading import Timer
+from _thread import *
 from message import Message
-import sys, select
 
 ClientSocket = socket.socket()
 HOST = '127.0.0.1'
-PORT = 1233
+PORT = 1232
 NODE_ID = ''
 
 
@@ -69,9 +68,19 @@ def unsubscribe_topic():
     msg = pickle.loads(msg)
     print(msg.content)
 
-    topic = input("Enter with the Topic ID: ")
+    if msg.topic:
+        topic = input("Enter with the Topic ID: ")
 
-    msg = Message(NODE_ID, 'unsubscribe', topic, topic)
+        msg = Message(NODE_ID, 'unsubscribe', topic, topic)
+        msg = pickle.dumps(msg)
+        ClientSocket.send(msg)
+
+        msg = ClientSocket.recv(2048)
+        msg = pickle.loads(msg)
+        print(msg.content)
+
+def get_subscribed_topics():
+    msg = Message(NODE_ID, 'list_subscribed', '', '')
     msg = pickle.dumps(msg)
     ClientSocket.send(msg)
 
@@ -84,7 +93,6 @@ def broker_connection(node_id):
     print('Waiting for connection')
     try:
         ClientSocket.connect((HOST, PORT))
-        ClientSocket.settimeout(0.1)
     except socket.error as e:
         print(str(e))
 
@@ -104,9 +112,10 @@ def broker_connection(node_id):
 
 FUNCTIONS = {
     '1': list_topics,
-    '2': subscribe_topic,
-    '3': unsubscribe_topic,
-    '4': publish_message,
+    '2': get_subscribed_topics,
+    '3': subscribe_topic,
+    '4': unsubscribe_topic,
+    '5': publish_message,
 }
 
 
@@ -125,33 +134,36 @@ broker_connection(NODE_ID)
 # Response = pickle.loads(Response)
 # print(Response.topic + ': ' + Response.content)
 
-first = True
-while True:
-    try:
-        Response = ClientSocket.recv(1024)
+
+def threaded_message(ClientSocket):
+    HOST = ''  # Endereco IP do Servidor
+    PORT = ClientSocket.getsockname()[1]  # Porta que o Servidor esta
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    orig = (HOST, PORT)
+    udp.bind(orig)
+
+    while True:
+        Response = udp.recv(1024)
         Response = pickle.loads(Response)
         print(Response.topic + ': ' + Response.content)
-    except:
-        pass
 
-    if first:
-        menu = 'Select a option: ' \
-               '\n 1 - List Topics' \
-               '\n 2 - Subscribe Topic' \
-               '\n 3 - Unsubscribe Topic' \
-               '\n 4 - Publish a message\n'
+Response = ClientSocket.recv(1024)
+Response = pickle.loads(Response)
+print(Response.topic + ': ' + Response.content)
 
+start_new_thread(threaded_message, (ClientSocket,))
+while True:
 
-        print(menu)
-        first = False
-    action = False
-    TIMEOUT = 1
-    i, o, e = select.select([sys.stdin], [], [], TIMEOUT)
-    # if i:
-    #     print("Você digitou: ", sys.stdin.readline().strip())
-    # else:
-    #     print('Você não digitou nada :(')
-    action = sys.stdin.readline().strip()
+    menu = '\n --------------------' \
+           '\n Select a option: ' \
+           '\n 1 - List All Topics' \
+           '\n 2 - List Your Subscribed Topics' \
+           '\n 3 - Subscribe Topic' \
+           '\n 4 - Unsubscribe Topic' \
+           '\n 5 - Publish a Message\n'
+
+    action = input(menu)
+
     if action:
         operation = FUNCTIONS.get(action, False)
         if operation:
