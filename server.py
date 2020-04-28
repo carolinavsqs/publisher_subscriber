@@ -122,6 +122,17 @@ def unsubscribe_topic(connection, msg):
     msg = pickle.dumps(msg)
     connection.send(msg)
 
+def send_message(connection, id_node):
+    while True:
+        sql = "select m.corpo, t.name from ps.messages m join ps.topics t on t.id = m.id_topic where m.id_sub = " + str(id_node)
+        cur.execute(sql)
+        messages = cur.fetchall()
+
+        for message in messages:
+            msg = Message(id_node, 'response', message[0], message[1])
+            msg = pickle.dumps(msg)
+            connection.send(msg)
+
 
 FUNCTIONS = {
     'connect': connect_node,
@@ -139,6 +150,7 @@ def threaded_client(connection):
     id_node = get_node_id(cur, str(connection.getpeername()[0]))
     send_message_after_connect(cur, connection.getpeername()[0], connection)
 
+    start_new_thread(send_message, (connection, id_node))
     while True:
         try:
             msg = connection.recv(2048)
@@ -220,7 +232,7 @@ def get_node_id(cur, ip):
     if not id:
         return 0
     else:
-        return id
+        return id[0]
 
 
 def get_node_ip(cur, id):
@@ -272,13 +284,13 @@ def store_message(connection, msg):
     subs = get_subscribers(cur, id_topic)
     id_pub = msg.node_id
     for sub in subs:
-        client = sub[1] + ':' + sub[2]
-        connection.bind((sub[1], int(sub[2])))
-        if client in CLIENTS:
-            msg = pickle.dumps(msg)
-            connection.sendto(msg)
-        else:
-            insert_message(cur, id, msg.content, id_pub, sub[0], id_topic)
+        # client = sub[1] + ':' + sub[2]
+        # connection.bind((sub[1], int(sub[2])))
+        # if client in CLIENTS:
+        #     msg = pickle.dumps(msg)
+        #     connection.sendto(msg)
+        # else:
+        insert_message(cur, id, msg.content, id_pub, sub[0], id_topic)
 
             
 def send_message_after_connect(cur, ip_sub, connection):
