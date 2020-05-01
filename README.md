@@ -30,7 +30,7 @@ Para mais detalhes da implementação e arquitetura acesse os arquivos *minucurs
 
 * Python3
 
-* PostgresSQL
+* PostgreSQL
 
 * psycopg2:
 
@@ -64,7 +64,7 @@ HOST = 'localhost'
 PORT = 1232
 ```
 
-### Inicar os nós:
+### Iniciar os nós:
 
 `python3 node.py`
 
