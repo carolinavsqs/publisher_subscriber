@@ -4,12 +4,16 @@ from _thread import *
 from message import Message
 
 ClientSocket = socket.socket()
-HOST = '127.0.0.1'
+HOST = 'localhost'
 PORT = 1232
 NODE_ID = ''
 
 
 def load_node_id():
+    """
+    Carrega o ID do nó caso ele exista
+    :return:
+    """
     try:
         file = open("id.txt", "r")
         node_id = file.readline()
@@ -21,12 +25,21 @@ def load_node_id():
 
 
 def save_node_id(node_id):
+    """
+    Salva o ID do nó em um arquivo
+    :param node_id:
+    :return:
+    """
     file = open("id.txt", "w")
     file.write(str(node_id))
     file.close()
 
 
 def publish_message():
+    """
+    Publica uma mensagem a um tópico
+    :return:
+    """
     string_topic = input("Insira o tópico da mensagem: ")
     string_msg = input("Insira a mensagem: ")
     msg = pickle.dumps(Message(NODE_ID, 'publish', string_msg, string_topic))
@@ -34,7 +47,7 @@ def publish_message():
 
 def list_topics():
     """
-
+    Solicita lista de tópicos disponíveis
     :return: List of topics available to subscribe
     """
     msg = pickle.dumps(Message(NODE_ID, 'list_all', '', ''))
@@ -48,6 +61,10 @@ def list_topics():
 
 
 def subscribe_topic():
+    """
+    Solicita inscrição em um tópico existente
+    :return:
+    """
     topic = input("Insira o número do tópico: ")
 
     msg = Message(NODE_ID, 'subscribe', topic, topic)
@@ -60,6 +77,10 @@ def subscribe_topic():
 
 
 def unsubscribe_topic():
+    """
+    Solicita remoção da inscrição em um tópico
+    :return:
+    """
     msg = Message(NODE_ID, 'list_subscribed', '', '')
     msg = pickle.dumps(msg)
     ClientSocket.send(msg)
@@ -80,6 +101,10 @@ def unsubscribe_topic():
         print(msg.content)
 
 def get_subscribed_topics():
+    """
+    Solicita lista de tópicos inscritos pelo nó
+    :return:
+    """
     msg = Message(NODE_ID, 'list_subscribed', '', '')
     msg = pickle.dumps(msg)
     ClientSocket.send(msg)
@@ -90,6 +115,11 @@ def get_subscribed_topics():
 
 
 def broker_connection(node_id):
+    """
+    Conexão com o Broker
+    :param node_id:
+    :return:
+    """
     print('Aguardando conexão...')
     try:
         ClientSocket.connect((HOST, PORT))
@@ -110,6 +140,7 @@ def broker_connection(node_id):
         print(msg.content)
 
 
+# Lista de funções disponíveis ao nó
 FUNCTIONS = {
     '1': list_topics,
     '2': get_subscribed_topics,
@@ -123,19 +154,12 @@ NODE_ID = load_node_id()
 broker_connection(NODE_ID)
 
 
-# data = b""
-# while True:
-#     packet = ClientSocket.recv(4096)
-#     print(packet)
-#     if not packet: break
-#     data += packet
-
-# Response = ClientSocket.recv(1024)
-# Response = pickle.loads(Response)
-# print(Response.topic + ': ' + Response.content)
-
-
 def threaded_message(ClientSocket):
+    """
+    Abre uma conexão UDP para aguarda novas mensagens dos tópicos inscritos
+    :param ClientSocket:
+    :return:
+    """
     HOST = ''  # Endereco IP do Servidor
     PORT = ClientSocket.getsockname()[1]  # Porta que o Servidor esta
     udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -147,6 +171,8 @@ def threaded_message(ClientSocket):
         Response = pickle.loads(Response)
         print(Response.topic + ': ' + Response.content)
 
+
+# Loop principal com o menu disponível ao nó
 Response = ClientSocket.recv(1024)
 Response = pickle.loads(Response)
 print(Response.topic + ': ' + Response.content)

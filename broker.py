@@ -1,8 +1,6 @@
 import pickle
 import socket
-import os
 from _thread import *
-import threading
 import psycopg2
 
 from message import Message
@@ -17,7 +15,7 @@ CLIENTS = []
 
 def authenticate_node(connection):
     """
-    Handles connections from new nodes and nodes already registered
+    Lida com conexões novas e já existentes de nós
     :param connection:
     :return:
     """
@@ -47,18 +45,13 @@ def authenticate_node(connection):
             print("Novo cliente " + str(new_id) + " fez login com o endereço " + str(ip) + ":" + str(gate))
 
 
-def connect_node():
-    # TODO
-    pass
-
-
 def publish_message(connection, msg):
     store_message(connection, msg)
 
 
 def list_topics(connection, msg):
     """
-    Returns a list of topics available to subscribe
+    Devolve a lista de tópicos disponíveis
     :param connection:
     :return:
     """
@@ -66,13 +59,19 @@ def list_topics(connection, msg):
 
     msg_string = 'Lista de tópicos disponíveis: \n'
     for topic in topics_list:
-        msg_string += topic[0] + ' - ' + topic[1] + '\n'
+        msg_string += str(topic[0]) + ' - ' + topic[1] + '\n'
 
     msg = pickle.dumps(Message('Broker', 'response', msg_string, ''))
     connection.send(msg)
 
 
 def subscribe_topic(connection, msg):
+    """
+    Inscreve em um tópico se ele existir
+    :param connection:
+    :param msg:
+    :return:
+    """
     sql = "select * from ps.topics_nodes where id_topic = " + msg.topic + " and id_sub = " + msg.node_id
     cur.execute(sql)
     is_subscribed = cur.fetchall()
@@ -91,6 +90,12 @@ def subscribe_topic(connection, msg):
 
 
 def get_subscribed_topics(connection, msg):
+    """
+    Devolve a lista de tópicos inscritos pelo nó
+    :param connection:
+    :param msg:
+    :return:
+    """
     sql = "select t.name, t.id from ps.topics t join ps.topics_nodes n on (t.id = n.id_topic) where n.id_sub = " + msg.node_id
     cur.execute(sql)
     subscribed_topics = cur.fetchall()
@@ -109,6 +114,12 @@ def get_subscribed_topics(connection, msg):
 
 
 def unsubscribe_topic(connection, msg):
+    """
+    Remove a inscrição de um nó caso ele esteja inscrito no tópico
+    :param connection:
+    :param msg:
+    :return:
+    """
     sql = "select * from ps.topics_nodes where id_topic = '" + msg.topic + "' and id_sub = '" + msg.node_id + "'"
     cur.execute(sql)
     is_subscribed = cur.fetchall()
@@ -124,9 +135,8 @@ def unsubscribe_topic(connection, msg):
     msg = pickle.dumps(msg)
     connection.send(msg)
 
-
+# Dicionário de funções disponíveis ao nó
 FUNCTIONS = {
-    'connect': connect_node,
     'publish': publish_message,
     'list_all': list_topics,
     'subscribe': subscribe_topic,
@@ -136,6 +146,11 @@ FUNCTIONS = {
 
 
 def threaded_client(connection):
+    """
+    Thread de cada nó com o loop principal aguardando as requisições
+    :param connection:
+    :return:
+    """
     authenticate_node(connection)
   
     id_node = get_node_id(cur, str(connection.getpeername()[0]))
@@ -169,6 +184,13 @@ def disconnect_database(con):
     con.close()
 
 def insert_node(cur, ip, gate):
+    """
+    Insere o registro de um novo nó com seu ID no banco de dados
+    :param cur:
+    :param ip:
+    :param gate:
+    :return:
+    """
     sql = 'SELECT id FROM ps.nodes ORDER BY id DESC LIMIT 1'
     cur.execute(sql)
     node_id = cur.fetchone()[0]
@@ -260,6 +282,12 @@ def update_node(cur, id, ip, gate):
 
 
 def store_message(connection, msg):
+    """
+    Envia as mensagens recém publicadas para os nós online e persiste as mensagens dos nós que estão offline
+    :param connection:
+    :param msg:
+    :return:
+    """
     sql = "select id from ps.topics where name = '" + msg.topic + "'"
     cur.execute(sql)
     id_topic = cur.fetchone()
@@ -287,6 +315,13 @@ def store_message(connection, msg):
 
             
 def send_message_after_connect(cur, ip_sub, connection):
+    """
+    Envia para o nó todas as mensagens publicadas nos tópicos assinados por ele enquanto ele estava offline
+    :param cur:
+    :param ip_sub:
+    :param connection:
+    :return:
+    """
     sql = "select m.id, m.corpo, t.name from ps.messages m join ps.nodes n on m.id_sub = n.id join ps.topics t on m.id_topic = t.id where n.ip = '" + ip_sub + "'"
 
     cur.execute(sql)
@@ -307,6 +342,8 @@ def send_message_after_connect(cur, ip_sub, connection):
             print("Cliente desconectado")
 
 
+# Inicia a conexão e aguarda os nós
+
 ServerSocket = socket.socket()
 
 ThreadCount = 0
@@ -324,11 +361,9 @@ ServerSocket.listen(5)
 
 while True:
     Client, address = ServerSocket.accept()
-    print('Conectado a: ' + address[0] + ':' + str(address[1]))
     CLIENTS.append(address[0] + ':' + str(address[1]))
     start_new_thread(threaded_client, (Client,))
     ThreadCount += 1
-    print('Número da thread: ' + str(ThreadCount))
 
     
 ServerSocket.close()
