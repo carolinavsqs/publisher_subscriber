@@ -27,8 +27,8 @@ def save_node_id(node_id):
 
 
 def publish_message():
-    string_topic = input("Insert the message topic: ")
-    string_msg = input("Insert the message: ")
+    string_topic = input("Insira o tópico da mensagem: ")
+    string_msg = input("Insira a mensagem: ")
     msg = pickle.dumps(Message(NODE_ID, 'publish', string_msg, string_topic))
     ClientSocket.send(msg)
 
@@ -48,7 +48,7 @@ def list_topics():
 
 
 def subscribe_topic():
-    topic = input("Enter with the Topic ID: ")
+    topic = input("Insira o número do tópico: ")
 
     msg = Message(NODE_ID, 'subscribe', topic, topic)
     msg = pickle.dumps(msg)
@@ -69,7 +69,7 @@ def unsubscribe_topic():
     print(msg.content)
 
     if msg.topic:
-        topic = input("Enter with the Topic ID: ")
+        topic = input("Insira o número do tópico: ")
 
         msg = Message(NODE_ID, 'unsubscribe', topic, topic)
         msg = pickle.dumps(msg)
@@ -90,7 +90,7 @@ def get_subscribed_topics():
 
 
 def broker_connection(node_id):
-    print('Waiting for connection')
+    print('Aguardando conexão...')
     try:
         ClientSocket.connect((HOST, PORT))
     except socket.error as e:
@@ -155,12 +155,12 @@ start_new_thread(threaded_message, (ClientSocket,))
 while True:
 
     menu = '\n --------------------' \
-           '\n Select a option: ' \
-           '\n 1 - List All Topics' \
-           '\n 2 - List Your Subscribed Topics' \
-           '\n 3 - Subscribe Topic' \
-           '\n 4 - Unsubscribe Topic' \
-           '\n 5 - Publish a Message\n'
+           '\n O que você gostaria de fazer? ' \
+           '\n 1 - Ver todos os tópicos' \
+           '\n 2 - Ver tópicos em que você está inscrito(a)' \
+           '\n 3 - Inscrever-se em um tópico' \
+           '\n 4 - Cancelar inscrição em um tópico' \
+           '\n 5 - Publicar uma mensagem\n'
 
     action = input(menu)
 
@@ -171,6 +171,6 @@ while True:
             operation()
             first = True
         else:
-            print('Invalid command')
+            print('Comando inválido!')
 
 ClientSocket.close()

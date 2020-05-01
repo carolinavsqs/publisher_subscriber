@@ -34,17 +34,17 @@ def authenticate_node(connection):
             if ip != get_node_ip(cur, node_id) or gate != get_node_gate(cur, node_id):
                 update_node(cur, node_id, ip, gate)
 
-            msg = pickle.dumps(Message(node_id, 'accept', "Welcome to the Server\n", ''))
+            msg = pickle.dumps(Message(node_id, 'accept', "Bem-vindo(a) ao servidor.\n", ''))
             connection.send(msg)
 
-            print("Client " + str(node_id) + ", logged with address " + str(ip) + ":" + str(gate))
+            print("Cliente " + str(node_id) + " fez login com o endereço " + str(ip) + ":" + str(gate))
 
         #  New node on system
         else:
             new_id = insert_node(cur, ip, gate)
-            msg = pickle.dumps(Message(new_id, 'connect', "Welcome to the Server\n", ''))
+            msg = pickle.dumps(Message(new_id, 'connect', "Bem-vindo(a) ao servidor.\n", ''))
             connection.send(msg)
-            print("New client " + str(new_id) + ", logged with address " + str(ip) + ":" + str(gate))
+            print("Novo cliente " + str(new_id) + " fez login com o endereço " + str(ip) + ":" + str(gate))
 
 
 def connect_node():
@@ -64,7 +64,7 @@ def list_topics(connection, msg):
     """
     topics_list = get_topics(cur)
 
-    msg_string = 'List of available topics: \n'
+    msg_string = 'Lista de tópicos disponíveis: \n'
     for topic in topics_list:
         msg_string += topic[0] + ' - ' + topic[1] + '\n'
 
@@ -80,10 +80,10 @@ def subscribe_topic(connection, msg):
         sql = "insert into ps.topics_nodes values(" + msg.topic + "," + msg.node_id + ")"
         cur.execute(sql)
         con.commit()
-        string_msg = 'Successfully subscribed to ' + msg.topic + '!'
+        string_msg = 'Inscrito(a) com sucesso no tópico ' + msg.topic + '.'
 
     else:
-        string_msg = 'Already subscribed to ' + msg.topic + '!'
+        string_msg = 'Você já está inscrito(a) no tópico ' + msg.topic + '!'
 
     msg = Message(msg.node_id, 'response', string_msg, msg.topic)
     msg = pickle.dumps(msg)
@@ -96,10 +96,10 @@ def get_subscribed_topics(connection, msg):
     subscribed_topics = cur.fetchall()
 
     if not subscribed_topics:
-        string_msg = 'You are not subscribed to any topic.'
+        string_msg = 'Você não está inscrito em nenhum tópico.'
         if_topics = False
     else:
-        string_msg = 'You are subscribed to the following topics:\n'
+        string_msg = 'Você está inscrito nos seguintes tópicos:\n'
         if_topics = True
         for topic in subscribed_topics:
             string_msg += str(topic[1]) + ' - ' + topic[0] + '\n'
@@ -116,9 +116,9 @@ def unsubscribe_topic(connection, msg):
         sql = "delete from ps.topics_nodes where id_topic = '" + msg.topic + "' and id_sub = '" + msg.node_id + "'"
         cur.execute(sql)
         con.commit()
-        string_msg = 'You are not subscribed from topic ' + msg.topic + ' anymore.'
+        string_msg = 'Você não está mais inscrito no tópico ' + msg.topic + '.'
     else:
-        string_msg = 'Subscription not found'
+        string_msg = 'Inscrição não encontrada'
 
     msg = Message(msg.node_id, 'response', string_msg, msg.topic)
     msg = pickle.dumps(msg)
@@ -150,11 +150,11 @@ def threaded_client(connection):
             if operation:
                 operation(connection, msg)
             else:
-                connection.send(str.encode("Invalid operation"))
+                connection.send(str.encode("Operação inválida"))
         except error:
             print(error)
             client = str(connection.getpeername()[0]) + ':' + str(connection.getpeername()[1])
-            print("Client " + client + ' quit server')
+            print("O cliente " + client + ' saiu do servidor')
             CLIENTS.remove(client)
 
     connection.close()
@@ -292,7 +292,7 @@ def send_message_after_connect(cur, ip_sub, connection):
     cur.execute(sql)
     messages = cur.fetchall()
     if not messages:
-        msg = Message('', '', 'Voce está atualizado', '')
+        msg = Message('', '', 'Você está atualizado', '')
         msg = pickle.dumps(msg)
         connection.sendall(msg)
     for message in messages:
@@ -319,16 +319,16 @@ try:
 except socket.error as e:
     print(str(e))
 
-print('Waiting for a Connection..')
+print('Aguardando conexão...')
 ServerSocket.listen(5)
 
 while True:
     Client, address = ServerSocket.accept()
-    print('Connected to: ' + address[0] + ':' + str(address[1]))
+    print('Conectado a: ' + address[0] + ':' + str(address[1]))
     CLIENTS.append(address[0] + ':' + str(address[1]))
     start_new_thread(threaded_client, (Client,))
     ThreadCount += 1
-    print('Thread Number: ' + str(ThreadCount))
+    print('Número da thread: ' + str(ThreadCount))
 
     
 ServerSocket.close()
