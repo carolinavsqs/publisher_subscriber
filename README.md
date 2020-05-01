@@ -71,7 +71,7 @@ PORT = 1232
 Adeque o HOST e a Porta para combinar com o do *Broker*:
 
 ```
-HOST = '127.0.0.1'
+HOST = 'localhost'
 PORT = 1232
 ```
 
