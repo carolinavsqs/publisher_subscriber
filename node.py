@@ -50,6 +50,7 @@ def list_topics():
     Solicita lista de tópicos disponíveis
     :return: List of topics available to subscribe
     """
+    global NODE_ID
     msg = pickle.dumps(Message(NODE_ID, 'list_all', '', ''))
     ClientSocket.send(msg)
 
@@ -67,6 +68,7 @@ def subscribe_topic():
     """
     topic = input("Insira o número do tópico: ")
 
+    global NODE_ID
     msg = Message(NODE_ID, 'subscribe', topic, topic)
     msg = pickle.dumps(msg)
     ClientSocket.send(msg)
@@ -133,7 +135,8 @@ def broker_connection(node_id):
     msg = pickle.loads(msg)
 
     if msg.message_type == "connect":
-        NODE_ID = msg.node_id
+        global NODE_ID
+        NODE_ID = str(msg.node_id)
         save_node_id(NODE_ID)
         print(msg.content)
     else:
@@ -175,7 +178,7 @@ def threaded_message(ClientSocket):
 # Loop principal com o menu disponível ao nó
 Response = ClientSocket.recv(1024)
 Response = pickle.loads(Response)
-print(Response.topic + ': ' + Response.content)
+print(Response.content)
 
 start_new_thread(threaded_message, (ClientSocket,))
 while True:

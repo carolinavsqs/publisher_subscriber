@@ -58,8 +58,11 @@ def list_topics(connection, msg):
     topics_list = get_topics(cur)
 
     msg_string = 'Lista de tópicos disponíveis: \n'
-    for topic in topics_list:
-        msg_string += str(topic[0]) + ' - ' + topic[1] + '\n'
+    if topics_list:
+        for topic in topics_list:
+            msg_string += str(topic[0]) + ' - ' + topic[1] + '\n'
+    else:
+        msg_string = "Não possui tópicos disponíveis."
 
     msg = pickle.dumps(Message('Broker', 'response', msg_string, ''))
     connection.send(msg)
@@ -166,11 +169,14 @@ def threaded_client(connection):
                 operation(connection, msg)
             else:
                 connection.send(str.encode("Operação inválida"))
-        except error:
-            print(error)
+        except:
             client = str(connection.getpeername()[0]) + ':' + str(connection.getpeername()[1])
             print("O cliente " + client + ' saiu do servidor')
-            CLIENTS.remove(client)
+            try:
+                CLIENTS.remove(client)
+                break
+            except:
+                pass
 
     connection.close()
 
@@ -193,9 +199,12 @@ def insert_node(cur, ip, gate):
     """
     sql = 'SELECT id FROM ps.nodes ORDER BY id DESC LIMIT 1'
     cur.execute(sql)
-    node_id = cur.fetchone()[0]
+    last_id = cur.fetchone()
+    if last_id:
+        node_id = int(last_id[0]) + 1
+    else:
+        node_id = 1
 
-    node_id = int(node_id) + 1
     sql = "insert into ps.nodes values(" +str(node_id)+ ", '" +str(ip)+ "', '" + str(gate) + "')"
     cur.execute(sql)
     con.commit()
@@ -330,16 +339,20 @@ def send_message_after_connect(cur, ip_sub, connection):
         msg = Message('', '', 'Você está atualizado', '')
         msg = pickle.dumps(msg)
         connection.sendall(msg)
+        return
+
+    str_msg = ''
     for message in messages:
-        try:
-            msg = Message(message[0], '', message[1], message[2])
-            msg = pickle.dumps(msg)
-            connection.sendall(msg)
-            sql = "delete from ps.messages where id = "+ str(message[0])
-            cur.execute(sql)
-            con.commit()
-        except:
-            print("Cliente desconectado")
+        str_msg += message[2] + ": " + message[1] + "\n"
+        sql = "delete from ps.messages where id = "+ str(message[0])
+        cur.execute(sql)
+        con.commit()
+    try:
+        msg = Message('', '', str_msg, '')
+        msg = pickle.dumps(msg)
+        connection.sendall(msg)
+    except:
+        print("Cliente desconectado")
 
 
 # Inicia a conexão e aguarda os nós
